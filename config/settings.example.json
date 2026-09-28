@@ -1,0 +1,8 @@
+{
+  "market": "US",
+  "currency": "USD",
+  "default_delivery_days": "3-8",
+  "max_retail_price_usd": 50,
+  "evidence_first": true,
+  "quality_over_quantity": true
+}
