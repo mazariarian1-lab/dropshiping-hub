@@ -5,6 +5,7 @@ from enum import Enum
 from typing import Dict, List
 
 from .research_request import ResearchRequest
+from .gates import evaluate_candidate
 
 class Stage(str, Enum):
     NORMALIZE = "normalize_request"
@@ -42,7 +43,13 @@ class ResearchWorkflow:
     def final_candidates(self) -> List[Dict]:
         eligible = []
         for candidate in self.state.candidates:
-            if candidate.get("status") == "VERIFIED" and not candidate.get("blockers"):
+            blockers = evaluate_candidate(
+                candidate,
+                fulfillment_min=self.state.request.fulfillment_min_days,
+                fulfillment_max=self.state.request.fulfillment_max_days,
+            )
+            candidate["blockers"] = blockers
+            if not blockers:
                 eligible.append(candidate)
         return eligible[: self.state.request.max_final_candidates]
 
