@@ -24,7 +24,7 @@ Help research and validate dropshipping opportunities while clearly separating v
 
 - Market: United States
 - Currency: USD
-- Default fulfillment target: 3-8 days
+- Default fulfillment target: 4-12 days (exceptions must be explicit)
 - Default retail ceiling: $50
 - Priority: consumer problem/need + evidence of demand
 - Preference: non-fragile, simple products, low return complexity
