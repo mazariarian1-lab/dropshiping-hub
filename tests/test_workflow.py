@@ -18,5 +18,18 @@ def test_workflow_does_not_fill_missing_evidence():
 
 def test_verified_unblocked_candidate_can_pass():
     workflow = ResearchWorkflow(ResearchRequest())
-    workflow.state.candidates = [{"status": "VERIFIED", "blockers": []}]
+    workflow.state.candidates = [{
+        "status": "VERIFIED",
+        "supplier": "Test Supplier",
+        "us_warehouse": True,
+        "delivery_days": (4, 8),
+        "product_cost": 5.0,
+        "shipping_cost": 4.0,
+        "retail_price": 24.99,
+        "trend_12m": "growing",
+        "trend_5y": "stable",
+        "source_url": "https://example.com/product",
+        "gross_margin_percent": 63.96,
+        "blockers": [],
+    }]
     assert len(workflow.final_candidates()) == 1
