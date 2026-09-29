@@ -6,6 +6,7 @@ from typing import Dict, List
 
 from .research_request import ResearchRequest
 from .gates import evaluate_candidate
+from src.pipeline import merge_packets
 
 class Stage(str, Enum):
     NORMALIZE = "normalize_request"
@@ -38,6 +39,12 @@ class ResearchWorkflow:
         self.state.stage = stage
         if findings:
             self.state.findings.extend(findings)
+        return self.state
+
+    def ingest_packets(self, packets: List[Dict]) -> WorkflowState:
+        """Merge specialist outputs before deterministic decision gates."""
+        self.state.candidates = merge_packets(packets)
+        self.state.stage = Stage.EVIDENCE_GATE
         return self.state
 
     def final_candidates(self) -> List[Dict]:
