@@ -3,19 +3,17 @@
 from typing import Iterable
 
 CRITICAL_FIELDS = (
-    "supplier",
-    "us_warehouse",
-    "delivery_days",
-    "product_cost",
-    "shipping_cost",
-    "retail_price",
-    "trend_12m",
-    "trend_5y",
-    "source_url",
+    "supplier", "us_warehouse", "delivery_days", "product_cost",
+    "shipping_cost", "retail_price", "trend_12m", "trend_5y", "source_url",
 )
 
 
-def evaluate_candidate(candidate: dict, fulfillment_min: int = 4, fulfillment_max: int = 12) -> list[str]:
+def evaluate_candidate(
+    candidate: dict,
+    fulfillment_min: int = 4,
+    fulfillment_max: int = 12,
+    retail_price_max: float = 50.0,
+) -> list[str]:
     blockers: list[str] = []
     if candidate.get("status") != "VERIFIED":
         blockers.append("critical evidence is not VERIFIED")
@@ -27,16 +25,21 @@ def evaluate_candidate(candidate: dict, fulfillment_min: int = 4, fulfillment_ma
             blockers.append(f"missing critical evidence: {field}")
     if candidate.get("us_warehouse") is not True:
         blockers.append("US warehouse is not verified")
-    if candidate.get("retail_price") is not None and candidate["retail_price"] > 50:
-        blockers.append("retail price exceeds $50")
-    if candidate.get("gross_margin_percent") is not None and candidate["gross_margin_percent"] < 40:
+    price = candidate.get("retail_price")
+    if price is not None and price > retail_price_max:
+        blockers.append(f"retail price exceeds ${retail_price_max:g}")
+    margin = candidate.get("gross_margin_percent")
+    if margin is not None and margin < 40:
         blockers.append("gross margin is below 40%")
     delivery = candidate.get("delivery_days")
     if isinstance(delivery, (tuple, list)) and len(delivery) == 2:
         if delivery[0] < fulfillment_min or delivery[1] > fulfillment_max:
             blockers.append(f"delivery is outside {fulfillment_min}-{fulfillment_max} day target")
-    elif delivery and isinstance(delivery, str) and "4-12" not in delivery and "4–12" not in delivery:
-        blockers.append(f"delivery does not explicitly match {fulfillment_min}-{fulfillment_max} day target")
+    elif delivery and isinstance(delivery, str):
+        normalized = delivery.replace("–", "-").replace("—", "-")
+        expected = f"{fulfillment_min}-{fulfillment_max}"
+        if expected not in normalized:
+            blockers.append(f"delivery does not explicitly match {fulfillment_min}-{fulfillment_max} day target")
     return list(dict.fromkeys(blockers))
 
 
