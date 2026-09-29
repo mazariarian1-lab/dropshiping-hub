@@ -1,0 +1,45 @@
+name: Deep Research
+
+on:
+  workflow_dispatch:
+    inputs:
+      keyword:
+        description: "Optional product keyword"
+        required: false
+        type: string
+
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: python -m pip install --upgrade pip && pip install -r requirements.txt
+      - name: Run evidence-first research
+        env:
+          CJ_API_KEY: ${{ secrets.CJ_API_KEY }}
+          PERPLEXITY_API_KEY: ${{ secrets.PERPLEXITY_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GOOGLE_TRENDS_ENABLED: "true"
+        run: |
+          python - <<'PY'
+          import json, os
+          from src.research import run_research
+          result = run_research(keyword=os.getenv("RESEARCH_KEYWORD") or None)
+          with open("research-report.json", "w", encoding="utf-8") as f:
+              json.dump(result, f, ensure_ascii=False, indent=2)
+          print(json.dumps(result["summary"], ensure_ascii=False, indent=2))
+          PY
+        env:
+          RESEARCH_KEYWORD: ${{ inputs.keyword }}
+      - name: Upload research report
+        uses: actions/upload-artifact@v4
+        with:
+          name: research-report
+          path: research-report.json
