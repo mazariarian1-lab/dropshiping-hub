@@ -26,6 +26,10 @@ class ResearchRequest:
         errors = []
         if self.market != "USA":
             errors.append("market must be USA")
+        if self.currency != "USD":
+            errors.append("currency must be USD")
+        if self.research_depth not in {"standard", "deep"}:
+            errors.append("research_depth must be standard or deep")
         if self.max_final_candidates < 1:
             errors.append("max_final_candidates must be >= 1")
         if self.retail_price_max <= 0:
@@ -36,4 +40,8 @@ class ResearchRequest:
             errors.append("allow_fewer_than_max must remain true")
         if not self.allow_zero_results:
             errors.append("allow_zero_results must remain true")
+        if self.preferred_warehouse.upper() != "US":
+            errors.append("preferred_warehouse must remain US")
+        if not self.evidence_first:
+            errors.append("evidence_first must remain true")
         return errors
