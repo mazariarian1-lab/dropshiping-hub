@@ -54,10 +54,12 @@ class ResearchWorkflow:
                 candidate,
                 fulfillment_min=self.state.request.fulfillment_min_days,
                 fulfillment_max=self.state.request.fulfillment_max_days,
+                retail_price_max=self.state.request.retail_price_max,
             )
             candidate["blockers"] = blockers
             if not blockers:
                 eligible.append(candidate)
+        self.state.stage = Stage.FINAL if eligible else Stage.EVIDENCE_GATE
         return eligible[: self.state.request.max_final_candidates]
 
     def summary(self) -> Dict:
