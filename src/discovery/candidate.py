@@ -7,7 +7,7 @@ from typing import Iterable
 
 def _key(value: str) -> str:
     value = re.sub(r"[^a-z0-9]+", " ", (value or "").lower()).strip()
-    return re.sub(r"\\s+", " ", value)
+    return re.sub(r"\s+", " ", value)
 
 
 @dataclass
