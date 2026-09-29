@@ -1,26 +1,29 @@
 # Research Adapter Contracts
 
 ## Purpose
-Adapters are the controlled boundary between the workflow and external research systems. They make future live integrations replaceable without changing the evidence gates.
+Adapters are the controlled boundary between the workflow and external research systems. They keep live integrations replaceable without changing the deterministic evidence gates.
 
-## Current adapters
-- Perplexity: web/product discovery, competitor research, source discovery.
-- Gemini: demand, seasonality, and market context.
-- Claude: contradiction, risk, competition, and assumption review.
-- Google Trends: 12M/5Y trend and seasonality evidence.
-- CJ Dropshipping: supplier, US warehouse, cost, and fulfillment evidence.
+## Adapters
+- Perplexity: product discovery and source discovery when `PERPLEXITY_API_KEY` is configured.
+- Gemini: demand and seasonality context when `GEMINI_API_KEY` is configured.
+- Claude: contradiction/risk review when `ANTHROPIC_API_KEY` is configured.
+- Google Trends: free `pytrends`-based 12M/5Y US trend collection when `GOOGLE_TRENDS_ENABLED=true`.
+- CJ Dropshipping: catalog discovery when `CJ_API_KEY` is configured.
 
 ## Safety contract
 1. A disconnected adapter returns BLOCKED; it does not fabricate results.
 2. Missing evidence stays in unknowns or NEEDS LIVE VERIFICATION.
-3. Estimates are allowed only when explicitly supported by a source.
-4. Critical supplier, warehouse, and delivery claims require direct or first-party evidence before VERIFIED.
+3. AI responses are accepted as candidates only when valid JSON is returned; malformed output is ignored.
+4. Critical supplier, warehouse, delivery, cost, price and trend claims require direct evidence before VERIFIED.
 5. Adapter consensus is not proof.
 6. Conflicts are preserved and sent to the evidence gate.
-7. The adapter layer does not approve products or spend money.
+7. The adapter layer never approves products or spends money.
 
-## Result lifecycle
-adapter -> AdapterResult -> packet -> merge_packets -> evidence gate -> human review
+## End-to-end lifecycle
+adapter -> AdapterResult -> candidate normalization -> merge_packets -> deterministic evidence gate -> human review
 
-## Live integration
-The current implementation intentionally uses safe stubs. Real connectors can implement ResearchAdapter.research() and return the same AdapterResult shape. No live credential or API key is embedded in source code.
+## Manual deep research
+GitHub Actions contains a **Deep Research** workflow. Run it manually from the Actions tab. It accepts an optional product keyword and stores `research-report.json` as an artifact. The workflow can use the existing `CJ_API_KEY` secret and optional AI secrets without ever printing their values.
+
+## Important limitation
+A live connection does **not** automatically make a product VERIFIED. The system intentionally returns zero final products when critical evidence is missing or conflicting. This is expected behavior and protects against hallucinated supplier, warehouse, delivery, trend, or margin claims.
