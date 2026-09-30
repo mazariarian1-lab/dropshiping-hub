@@ -101,6 +101,9 @@ class ResearchWorkflow:
             "stage": self.state.stage.value,
             "candidate_count": len(self.state.candidates),
             "final_count": len(final),
+            "verified_count": sum(1 for c in self.state.candidates if c.get("status") == "VERIFIED"),
+            "rejected_count": sum(1 for c in self.state.candidates if c.get("blockers")),
+            "top_scores": [{"name": c.get("name"), "score": c.get("product_score")} for c in final],
             "message": (
                 "NO PRODUCT PASSED THE CURRENT EVIDENCE GATES."
                 if not final else
