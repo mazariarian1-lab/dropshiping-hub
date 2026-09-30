@@ -30,6 +30,7 @@ jobs:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           GOOGLE_TRENDS_ENABLED: "true"
           TIKTOK_COMMERCIAL_CONTENT_TOKEN: ${{ secrets.TIKTOK_COMMERCIAL_CONTENT_TOKEN }}
+          RESEARCH_KEYWORD: ${{ inputs.keyword }}
         run: |
           python - <<'PY'
           import json, os
@@ -39,8 +40,6 @@ jobs:
               json.dump(result, f, ensure_ascii=False, indent=2)
           print(json.dumps(result["summary"], ensure_ascii=False, indent=2))
           PY
-        env:
-          RESEARCH_KEYWORD: ${{ inputs.keyword }}
       - name: Upload research report
         uses: actions/upload-artifact@v4
         with:
