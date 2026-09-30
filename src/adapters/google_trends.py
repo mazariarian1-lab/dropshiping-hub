@@ -38,6 +38,9 @@ class GoogleTrendsAdapter:
                 return {"first":vals[0],"last":vals[-1],"peak":peak,"points":n,"first_window_avg":round(first_avg,2),"last_window_avg":round(last_avg,2),"change_percent":round(change,2) if change is not None else None,"direction":direction,"peak_position_percent":round((peak_index/(n-1))*100,1) if n>1 else 0}
             recent_summary=summary(recent); long_summary=summary(long_term)
             candidate={"name":str(keyword),"trend_12m":recent_summary,"trend_5y":long_summary,
+                       "trend_growth_signal":recent_summary.get("direction"),
+                       "trend_long_term_signal":long_summary.get("direction"),
+                       "seasonality_signal":bool(recent_summary.get("peak_position_percent") not in (0,100)),
                        "evidence":[{"source":"Google Trends via pytrends","keyword":str(keyword),"geo":"US","retrieved_at":_now()}]}
             return AdapterResult("google_trends","COMPLETE",request_id,_now(),candidates=[candidate],findings=[candidate])
         except ImportError:
