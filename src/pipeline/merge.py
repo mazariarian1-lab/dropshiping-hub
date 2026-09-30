@@ -4,13 +4,13 @@ from collections import defaultdict
 from typing import Any, Iterable
 from .normalize import normalize_candidate
 
-CRITICAL_FIELDS = {"supplier", "us_warehouse", "delivery_days", "product_cost", "shipping_cost", "retail_price", "trend_12m", "trend_5y", "source_url"}
+CRITICAL_FIELDS = {"supplier", "us_warehouse", "delivery_days", "product_cost", "shipping_cost", "retail_price", "trend_12m", "trend_5y", "source_url", "product_id", "variant_id"}
 
 def _identity(candidate: dict[str, Any]) -> str:
     return " ".join(str(candidate.get("name", "")).lower().strip().split())
 
 def merge_packets(packets: Iterable[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Merge candidates by normalized name and preserve material conflicts."""
+    """Merge by normalized product name while treating CJ product/variant IDs as identity evidence."""
     merged: dict[str, dict[str, Any]] = {}
     observations: dict[str, dict[str, list[Any]]] = defaultdict(lambda: defaultdict(list))
     for packet in packets:
@@ -28,6 +28,11 @@ def merge_packets(packets: Iterable[dict[str, Any]]) -> list[dict[str, Any]]:
                 elif field not in target:
                     target[field] = value
             target["evidence"].extend(x for x in candidate.get("evidence", []) if x not in target["evidence"])
+            # Preserve exact CJ identity separately so similarly named products cannot silently substitute for each other.
+            if candidate.get("product_id") and not target.get("product_id"):
+                target["product_id"] = candidate["product_id"]
+            if candidate.get("variant_id") and not target.get("variant_id"):
+                target["variant_id"] = candidate["variant_id"]
             target["unknowns"].extend(x for x in candidate.get("unknowns", []) if x not in target["unknowns"])
     for key, target in merged.items():
         for field, values in observations[key].items():
