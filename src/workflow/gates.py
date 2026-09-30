@@ -8,46 +8,36 @@ CRITICAL_FIELDS = (
 )
 
 
-def evaluate_candidate(
-    candidate: dict,
-    fulfillment_min: int = 4,
-    fulfillment_max: int = 12,
-    retail_price_max: float = 50.0,
-) -> list[str]:
+def _number(value):
+    return isinstance(value, (int, float)) and not isinstance(value, bool)
+
+def evaluate_candidate(candidate: dict, fulfillment_min: int = 4, fulfillment_max: int = 12, retail_price_max: float = 50.0) -> list[str]:
     blockers: list[str] = []
-    if candidate.get("status") != "VERIFIED":
-        blockers.append("critical evidence is not VERIFIED")
-    if candidate.get("conflicts"):
-        blockers.append("critical evidence conflict exists")
+    if candidate.get("status") != "VERIFIED": blockers.append("critical evidence is not VERIFIED")
+    if candidate.get("conflicts"): blockers.append("critical evidence conflict exists")
     for field in CRITICAL_FIELDS:
         value = candidate.get(field)
-        if value in (None, "", "UNKNOWN", "NEEDS LIVE VERIFICATION"):
-            blockers.append(f"missing critical evidence: {field}")
-    if candidate.get("us_warehouse") is not True:
-        blockers.append("US warehouse is not verified")
+        if value in (None, "", "UNKNOWN", "NEEDS LIVE VERIFICATION"): blockers.append(f"missing critical evidence: {field}")
+    if candidate.get("us_warehouse") is not True: blockers.append("US warehouse is not verified")
     price = candidate.get("retail_price")
-    if price is not None and price > retail_price_max:
-        blockers.append(f"retail price exceeds ${retail_price_max:g}")
-    margin = candidate.get("gross_margin_percent")
-    if margin is not None and margin < 40:
-        blockers.append("gross margin is below 40%")
+    if not _number(price): blockers.append("retail price must be numeric")
+    elif price > retail_price_max: blockers.append(f"retail price exceeds ${retail_price_max:g}")
+    product_cost, shipping_cost = candidate.get("product_cost"), candidate.get("shipping_cost")
+    if not _number(product_cost): blockers.append("product cost must be numeric")
+    if not _number(shipping_cost): blockers.append("shipping cost must be numeric")
+    if _number(product_cost) and _number(shipping_cost) and _number(price) and price > 0:
+        landed = product_cost + shipping_cost
+        margin = ((price - landed) / price) * 100
+        candidate["landed_cost"] = round(landed, 2)
+        candidate["calculated_gross_margin_percent"] = round(margin, 2)
+        if margin < 40: blockers.append("calculated gross margin is below 40%")
+        supplied = candidate.get("gross_margin_percent")
+        if _number(supplied) and abs(supplied - margin) > 1.0: blockers.append("supplied gross margin conflicts with calculated margin")
     delivery = candidate.get("delivery_days")
     if isinstance(delivery, (tuple, list)) and len(delivery) == 2:
-        if delivery[0] < fulfillment_min or delivery[1] > fulfillment_max:
-            blockers.append(f"delivery is outside {fulfillment_min}-{fulfillment_max} day target")
-    elif delivery and isinstance(delivery, str):
+        if delivery[0] < fulfillment_min or delivery[1] > fulfillment_max: blockers.append(f"delivery is outside {fulfillment_min}-{fulfillment_max} day target")
+    elif isinstance(delivery, str):
         normalized = delivery.replace("–", "-").replace("—", "-")
-        expected = f"{fulfillment_min}-{fulfillment_max}"
-        if expected not in normalized:
-            blockers.append(f"delivery does not explicitly match {fulfillment_min}-{fulfillment_max} day target")
+        if f"{fulfillment_min}-{fulfillment_max}" not in normalized: blockers.append(f"delivery does not explicitly match {fulfillment_min}-{fulfillment_max} day target")
+    else: blockers.append(f"delivery must be evidenced within {fulfillment_min}-{fulfillment_max} days")
     return list(dict.fromkeys(blockers))
-
-
-def ready_candidates(candidates: Iterable[dict], limit: int = 5) -> list[dict]:
-    ready = []
-    for candidate in candidates:
-        blockers = evaluate_candidate(candidate)
-        candidate["blockers"] = blockers
-        if not blockers:
-            ready.append(candidate)
-    return ready[:limit]
