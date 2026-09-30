@@ -80,3 +80,13 @@ def test_gate_rejects_missing_shipping_even_when_product_cost_exists():
         "trend_12m":"growing","trend_5y":"stable","source_url":"https://example.com/product",
     }]
     assert workflow.final_candidates() == []
+
+def test_merge_preserves_cj_identity_and_flags_conflicting_ids():
+    workflow = ResearchWorkflow(ResearchRequest())
+    state = workflow.ingest_packets([
+        {"candidates": [{"product_name": "Cable Organizer", "product_id": "CJ-1", "variant_id": "V-1"}]},
+        {"candidates": [{"product_name": "Cable Organizer", "product_id": "CJ-2", "variant_id": "V-2"}]},
+    ])
+    assert len(state.candidates) == 1
+    assert state.candidates[0]["status"] == "NEEDS LIVE VERIFICATION"
+    assert any(x["field"] == "product_id" for x in state.candidates[0]["conflicts"])
