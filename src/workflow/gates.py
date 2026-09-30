@@ -19,6 +19,8 @@ def evaluate_candidate(candidate: dict, fulfillment_min: int = 4, fulfillment_ma
         value = candidate.get(field)
         if value in (None, "", "UNKNOWN", "NEEDS LIVE VERIFICATION"): blockers.append(f"missing critical evidence: {field}")
     if candidate.get("us_warehouse") is not True: blockers.append("US warehouse is not verified")
+    shipping_evidence = candidate.get("shipping_evidence")
+    if not isinstance(shipping_evidence, dict) or shipping_evidence.get("destination") != "US": blockers.append("USA shipping evidence is not verified")
     price = candidate.get("retail_price")
     if not _number(price): blockers.append("retail price must be numeric")
     elif price > retail_price_max: blockers.append(f"retail price exceeds ${retail_price_max:g}")
