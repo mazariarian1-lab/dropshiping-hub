@@ -72,7 +72,18 @@ class CJDropshippingAdapter(ResearchAdapter):
             url="https://developers.cjdropshipping.com/api2.0/v1/product/listV2?page=1&size=10&countryCode=US&verifiedWarehouse=1"
             if keyword: url += "&keyWord="+quote(str(keyword))
             data=get_json(url,headers); raw=data.get("data",{})
-            rows=raw.get("list",[]) if isinstance(raw,dict) else raw if isinstance(raw,list) else []
+            # CJ Product List V2 currently returns data.content[].productList.
+            # Keep compatibility with the older data.list shape as well.
+            rows=[]
+            if isinstance(raw,dict):
+                if isinstance(raw.get("list"),list):
+                    rows=raw["list"]
+                elif isinstance(raw.get("content"),list):
+                    for block in raw["content"]:
+                        if isinstance(block,dict) and isinstance(block.get("productList"),list):
+                            rows.extend(block["productList"])
+            elif isinstance(raw,list):
+                rows=raw
             candidates=[]; findings=[]
             for row in rows:
                 if not isinstance(row,dict): continue
