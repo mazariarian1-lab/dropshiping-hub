@@ -63,6 +63,20 @@ class ResearchWorkflow:
         score += {"LOW": 10.0, "MEDIUM": 5.0, "HIGH": 0.0}.get(str(candidate.get("risk_level", "")).upper(), 0.0)
         if candidate.get("customer_problem"): score += 5.0
         return round(min(score, 100.0), 2)
+
+    @staticmethod
+    def _score_breakdown(candidate: Dict) -> Dict:
+        return {
+            "margin": candidate.get("calculated_gross_margin_percent"),
+            "trend_12m": candidate.get("trend_growth_signal"),
+            "trend_5y": candidate.get("trend_long_term_signal"),
+            "delivery_days": candidate.get("delivery_days"),
+            "seasonality": candidate.get("seasonality_signal"),
+            "competition": candidate.get("competition"),
+            "ad_potential": candidate.get("ad_potential"),
+            "risk": candidate.get("risk_level"),
+            "consumer_problem": bool(candidate.get("customer_problem")),
+        }
     def final_candidates(self) -> List[Dict]:
         eligible = []
         for candidate in self.state.candidates:
@@ -75,6 +89,7 @@ class ResearchWorkflow:
             candidate["blockers"] = blockers
             if not blockers:
                 candidate["product_score"] = self._score(candidate)
+                candidate["score_breakdown"] = self._score_breakdown(candidate)
                 eligible.append(candidate)
         eligible.sort(key=lambda item: item.get("product_score", 0), reverse=True)
         self.state.stage = Stage.FINAL if eligible else Stage.EVIDENCE_GATE
