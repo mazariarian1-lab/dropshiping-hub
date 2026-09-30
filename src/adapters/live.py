@@ -87,7 +87,7 @@ class CJDropshippingAdapter(ResearchAdapter):
             candidates=[]; findings=[]
             for row in rows:
                 if not isinstance(row,dict): continue
-                name=row.get("productNameEn") or row.get("productName") or row.get("name"); pid=row.get("pid") or row.get("productId")
+                name=row.get("productNameEn") or row.get("productName") or row.get("nameEn") or row.get("name"); pid=row.get("pid") or row.get("productId") or row.get("id")
                 if not name: continue
                 candidate={"name":name,"supplier":"CJ Dropshipping","us_warehouse":True,"source_url":row.get("productUrl") or row.get("url") or "","product_id":pid,"product_cost":row.get("sellPrice") or row.get("price")}
                 if row.get("deliveryCycle") is not None: candidate["delivery_days"]=row.get("deliveryCycle")
