@@ -53,25 +53,70 @@ class ClaudeAdapter(ResearchAdapter):
         except RuntimeError as exc: return AdapterResult("claude","BLOCKED",request_id,_now(),unknowns=[str(exc)])
 
 class CJDropshippingAdapter(ResearchAdapter):
-    capabilities=AdapterCapabilities("cj_dropshipping","supplier_validation","supplier_catalog",("supplier","US warehouse","cost","fulfillment"))
+    capabilities=AdapterCapabilities("cj_dropshipping","supplier_validation","supplier_catalog",("supplier","US warehouse","cost","fulfillment","inventory"))
+
     def research(self,request,request_id):
         key=os.getenv("CJ_API_KEY")
-        if not key: return AdapterResult.not_connected("cj_dropshipping",request_id,"CJ_API_KEY is not configured.")
+        if not key:
+            return AdapterResult.not_connected("cj_dropshipping",request_id,"CJ_API_KEY is not configured.")
         try:
             auth=post_json("https://developers.cjdropshipping.com/api2.0/v1/authentication/getAccessToken",{"apiKey":key})
             token=auth.get("data",{}).get("accessToken")
-            if not token: return AdapterResult("cj_dropshipping","BLOCKED",request_id,_now(),unknowns=["CJ authentication did not return an access token."])
-            url="https://developers.cjdropshipping.com/api2.0/v1/product/listV2?page=1&size=20"
+            if not token:
+                return AdapterResult("cj_dropshipping","BLOCKED",request_id,_now(),unknowns=["CJ authentication did not return an access token."])
+
+            headers={"CJ-Access-Token":token}
             keyword=request.get("keyword") or request.get("product_keyword")
-            if keyword: url += "&keyWord="+quote(str(keyword))
-            data=get_json(url,{"CJ-Access-Token":token})
+            url="https://developers.cjdropshipping.com/api2.0/v1/product/listV2?page=1&size=10&countryCode=US&verifiedWarehouse=1"
+            if keyword:
+                url += "&keyWord="+quote(str(keyword))
+            data=get_json(url,headers)
             raw=data.get("data",{})
             rows=raw.get("list",[]) if isinstance(raw,dict) else raw if isinstance(raw,list) else []
             candidates=[]
+            findings=[]
             for row in rows:
-                if not isinstance(row,dict): continue
-                name=row.get("productName") or row.get("name")
-                if not name: continue
-                candidates.append({"name":name,"supplier":"CJ Dropshipping","source_url":row.get("productUrl") or row.get("url") or "","product_id":row.get("pid") or row.get("productId"),"product_cost":row.get("sellPrice") or row.get("price")})
-            return AdapterResult("cj_dropshipping","COMPLETE",request_id,_now(),candidates=candidates,findings=[{"source":"CJ Product List V2","data":data}],recommended_next_checks=["Query CJ product details, US warehouse inventory, shipping and destination-specific delivery before VERIFIED."])
-        except RuntimeError as exc: return AdapterResult("cj_dropshipping","BLOCKED",request_id,_now(),unknowns=[str(exc)])
+                if not isinstance(row,dict):
+                    continue
+                name=row.get("productNameEn") or row.get("productName") or row.get("name")
+                pid=row.get("pid") or row.get("productId")
+                if not name:
+                    continue
+
+                candidate={
+                    "name":name,
+                    "supplier":"CJ Dropshipping",
+                    "us_warehouse":True,
+                    "source_url":row.get("productUrl") or row.get("url") or "",
+                    "product_id":pid,
+                    "product_cost":row.get("sellPrice") or row.get("price"),
+                }
+                if row.get("deliveryCycle") is not None:
+                    candidate["delivery_days"]=row.get("deliveryCycle")
+
+                # Product detail gives a stronger identity and supplier link when available.
+                if pid:
+                    detail=get_json("https://developers.cjdropshipping.com/api2.0/v1/product/query?pid="+quote(str(pid)),headers)
+                    detail_data=detail.get("data",{}) if isinstance(detail,dict) else {}
+                    if isinstance(detail_data,dict):
+                        candidate["product_sku"]=detail_data.get("productSku") or detail_data.get("sku")
+                        candidate["source_url"]=detail_data.get("supplierLink") or detail_data.get("productUrl") or candidate["source_url"]
+                        candidate["product_cost"]=detail_data.get("sellPrice") or candidate.get("product_cost")
+                        candidate["delivery_days"]=detail_data.get("deliveryCycle") or candidate.get("delivery_days")
+
+                    inventory=get_json("https://developers.cjdropshipping.com/api2.0/v1/product/stock/getInventoryByPid?pid="+quote(str(pid)),headers)
+                    inventory_data=inventory.get("data",{}) if isinstance(inventory,dict) else {}
+                    inventories=inventory_data.get("inventories",[]) if isinstance(inventory_data,dict) else []
+                    us_rows=[x for x in inventories if isinstance(x,dict) and str(x.get("areaEn","")).lower()=="us warehouse"]
+                    candidate["us_inventory_verified"]=bool(us_rows)
+                    candidate["us_inventory_quantity"]=sum(int(x.get("totalInventory",0) or 0) for x in us_rows if str(x.get("totalInventory","")).isdigit())
+
+                candidate["evidence"]=[{"source":"CJ Dropshipping API","warehouse_filter":"US","verifiedWarehouse":1,"product_id":pid}]
+                candidates.append(candidate)
+                findings.append(candidate)
+
+            return AdapterResult("cj_dropshipping","COMPLETE",request_id,_now(),
+                                 candidates=candidates,findings=findings,
+                                 recommended_next_checks=["Calculate destination-specific freight and delivery before VERIFIED."])
+        except RuntimeError as exc:
+            return AdapterResult("cj_dropshipping","BLOCKED",request_id,_now(),unknowns=[str(exc)])
