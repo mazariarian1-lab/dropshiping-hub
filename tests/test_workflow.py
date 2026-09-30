@@ -68,7 +68,7 @@ def test_gate_calculates_landed_cost_and_margin():
         "status":"VERIFIED","supplier":"CJ Dropshipping","us_warehouse":True,"customer_problem":"Solves cable clutter","ad_potential":"HIGH","risk_level":"LOW",
         "delivery_days":(4,8),"product_cost":5.0,"shipping_cost":4.0,
         "retail_price":24.99,"trend_12m":"growing","trend_5y":"stable",
-        "source_url":"https://example.com/product","gross_margin_percent":63.99,
+        "source_url":"https://example.com/product","gross_margin_percent":63.99,"shipping_evidence":{"source":"CJ Freight Calculation","destination":"US"},
     }]
     final = workflow.final_candidates()
     assert len(final) == 1
