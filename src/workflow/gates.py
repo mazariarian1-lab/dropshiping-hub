@@ -46,3 +46,16 @@ def evaluate_candidate(candidate: dict, fulfillment_min: int = 4, fulfillment_ma
         if f"{fulfillment_min}-{fulfillment_max}" not in normalized: blockers.append(f"delivery does not explicitly match {fulfillment_min}-{fulfillment_max} day target")
     else: blockers.append(f"delivery must be evidenced within {fulfillment_min}-{fulfillment_max} days")
     return list(dict.fromkeys(blockers))
+
+
+def ready_candidates(candidates, limit=5, fulfillment_min=4, fulfillment_max=12, retail_price_max=50.0):
+    """Return only candidates that pass the deterministic evidence gate, capped by limit."""
+    ready=[]
+    for candidate in candidates:
+        blockers=evaluate_candidate(candidate, fulfillment_min, fulfillment_max, retail_price_max)
+        candidate["blockers"]=blockers
+        if not blockers:
+            ready.append(candidate)
+        if len(ready) >= limit:
+            break
+    return ready
