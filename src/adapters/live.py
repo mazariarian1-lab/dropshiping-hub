@@ -105,21 +105,21 @@ class CJDropshippingAdapter(ResearchAdapter):
                         candidate["delivery_days"]=detail_data.get("deliveryCycle") or candidate.get("delivery_days")
 
 # Exact variant + USA freight evidence; never infer shipping.
-variant_data=get_json("https://developers.cjdropshipping.com/api2.0/v1/product/variant/query?pid="+quote(str(pid)),headers)
-variants=variant_data.get("data",{}).get("list",[]) if isinstance(variant_data.get("data",{}),dict) else []
-if variants:
-    v=variants[0]
-    candidate["variant_id"]=v.get("vid") or v.get("variantId")
-    candidate["variant_sku"]=v.get("variantSku") or v.get("sku")
-    candidate["variant_cost"]=v.get("sellPrice") or v.get("price") or candidate.get("product_cost")
-vid=candidate.get("variant_id")
-if vid:
-    freight=post_json("https://developers.cjdropshipping.com/api2.0/v1/logistic/freightCalculate",{"startCountryCode":"CN","endCountryCode":"US","products":[{"quantity":1,"vid":vid}]},headers)
-    rows=freight.get("data",[]) if isinstance(freight,dict) else []
-    usable=[x for x in rows if isinstance(x,dict) and x.get("logisticPrice") is not None]
-    if usable:
-        valid=[]
-        for option in usable:
+                variant_data=get_json("https://developers.cjdropshipping.com/api2.0/v1/product/variant/query?pid="+quote(str(pid)),headers)
+                variants=variant_data.get("data",{}).get("list",[]) if isinstance(variant_data.get("data",{}),dict) else []
+                if variants:
+                    v=variants[0]
+                    candidate["variant_id"]=v.get("vid") or v.get("variantId")
+                    candidate["variant_sku"]=v.get("variantSku") or v.get("sku")
+                    candidate["variant_cost"]=v.get("sellPrice") or v.get("price") or candidate.get("product_cost")
+                vid=candidate.get("variant_id")
+                if vid:
+                    freight=post_json("https://developers.cjdropshipping.com/api2.0/v1/logistic/freightCalculate",{"startCountryCode":"CN","endCountryCode":"US","products":[{"quantity":1,"vid":vid}]},headers)
+                    rows=freight.get("data",[]) if isinstance(freight,dict) else []
+                    usable=[x for x in rows if isinstance(x,dict) and x.get("logisticPrice") is not None]
+                    if usable:
+                        valid=[]
+                        for option in usable:
             aging=option.get("logisticAging")
             if isinstance(aging,(list,tuple)) and len(aging)>=2:
                 lo,hi=int(aging[0]),int(aging[1])
