@@ -112,6 +112,7 @@ class CJDropshippingAdapter(ResearchAdapter):
                     candidate["us_inventory_quantity"]=sum(int(x.get("totalInventory",0) or 0) for x in us_rows if str(x.get("totalInventory","")).isdigit())
 
                 candidate["evidence"]=[{"source":"CJ Dropshipping API","warehouse_filter":"US","verifiedWarehouse":1,"product_id":pid}]
+                candidate["unknowns"]=["Destination-specific USA shipping quote is not yet verified by this adapter."]
                 candidates.append(candidate)
                 findings.append(candidate)
 
