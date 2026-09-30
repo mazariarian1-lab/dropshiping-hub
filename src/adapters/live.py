@@ -118,11 +118,27 @@ if vid:
     rows=freight.get("data",[]) if isinstance(freight,dict) else []
     usable=[x for x in rows if isinstance(x,dict) and x.get("logisticPrice") is not None]
     if usable:
-        best=min(usable,key=lambda x:float(x.get("logisticPrice",0)))
-        candidate["shipping_cost"]=float(best["logisticPrice"])
-        candidate["delivery_days"]=best.get("logisticAging") or candidate.get("delivery_days")
-        candidate["shipping_method"]=best.get("logisticName")
-        candidate["shipping_evidence"]={"source":"CJ Freight Calculation","destination":"US","variant_id":vid}
+        valid=[]
+        for option in usable:
+            aging=option.get("logisticAging")
+            if isinstance(aging,(list,tuple)) and len(aging)>=2:
+                lo,hi=int(aging[0]),int(aging[1])
+            elif isinstance(aging,(int,float)):
+                lo=hi=int(aging)
+            else:
+                import re
+                nums=[int(x) for x in re.findall(r"\\d+",str(aging or ""))]
+                lo,hi=(min(nums),max(nums)) if len(nums)>=2 else (nums[0],nums[0]) if nums else (None,None)
+            if lo is not None and hi is not None and lo>=4 and hi<=12:
+                option=dict(option); option["_delivery_days"]=(lo,hi); valid.append(option)
+        if valid:
+            best=min(valid,key=lambda x:float(x.get("logisticPrice",0)))
+            candidate["shipping_cost"]=float(best["logisticPrice"])
+            candidate["delivery_days"]=best["_delivery_days"]
+            candidate["shipping_method"]=best.get("logisticName")
+            candidate["shipping_evidence"]={"source":"CJ Freight Calculation","destination":"US","variant_id":vid,"delivery_days":candidate["delivery_days"]}
+        else:
+            candidate["unknowns"].append("CJ returned no USA shipping option within the required 4-12 day delivery window.")
     else: candidate["unknowns"].append("CJ returned no usable USA freight option for this variant.")
 
                     inventory=get_json("https://developers.cjdropshipping.com/api2.0/v1/product/stock/getInventoryByPid?pid="+quote(str(pid)),headers)
@@ -133,7 +149,7 @@ if vid:
                     candidate["us_inventory_quantity"]=sum(int(x.get("totalInventory",0) or 0) for x in us_rows if str(x.get("totalInventory","")).isdigit())
 
                 candidate["evidence"]=[{"source":"CJ Dropshipping API","warehouse_filter":"US","verifiedWarehouse":1,"product_id":pid}]
-                candidate["unknowns"]=["Destination-specific USA shipping quote is not yet verified by this adapter."]
+                candidate.setdefault("unknowns",[]).append("Destination-specific USA shipping requires a valid CJ freight result.")
                 candidates.append(candidate)
                 findings.append(candidate)
 
