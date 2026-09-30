@@ -26,6 +26,9 @@ def test_verified_unblocked_candidate_can_pass():
     workflow.state.candidates = [{
         "status": "VERIFIED",
         "supplier": "Test Supplier",
+        "customer_problem": "Solves a clear consumer problem",
+        "ad_potential": "HIGH",
+        "risk_level": "LOW",
         "us_warehouse": True,
         "delivery_days": (4, 8),
         "product_cost": 5.0,
@@ -62,7 +65,7 @@ def test_request_rejects_non_usa_or_non_us_warehouse_configuration():
 def test_gate_calculates_landed_cost_and_margin():
     workflow = ResearchWorkflow(ResearchRequest())
     workflow.state.candidates = [{
-        "status":"VERIFIED","supplier":"CJ Dropshipping","us_warehouse":True,"customer_problem":"Solves cable clutter","ad_potential":"HIGH","risk_level":"LOW","customer_problem":"Solves cable clutter","ad_potential":"HIGH","risk_level":"LOW",
+        "status":"VERIFIED","supplier":"CJ Dropshipping","us_warehouse":True,"customer_problem":"Solves cable clutter","ad_potential":"HIGH","risk_level":"LOW",
         "delivery_days":(4,8),"product_cost":5.0,"shipping_cost":4.0,
         "retail_price":24.99,"trend_12m":"growing","trend_5y":"stable",
         "source_url":"https://example.com/product","gross_margin_percent":63.99,
@@ -75,7 +78,7 @@ def test_gate_calculates_landed_cost_and_margin():
 def test_gate_rejects_missing_shipping_even_when_product_cost_exists():
     workflow = ResearchWorkflow(ResearchRequest())
     workflow.state.candidates = [{
-        "status":"VERIFIED","supplier":"CJ Dropshipping","us_warehouse":True,"customer_problem":"Solves cable clutter","ad_potential":"HIGH","risk_level":"LOW","customer_problem":"Solves cable clutter","ad_potential":"HIGH","risk_level":"LOW",
+        "status":"VERIFIED","supplier":"CJ Dropshipping","us_warehouse":True,"customer_problem":"Solves cable clutter","ad_potential":"HIGH","risk_level":"LOW",
         "delivery_days":(4,8),"product_cost":5.0,"retail_price":24.99,
         "trend_12m":"growing","trend_5y":"stable","source_url":"https://example.com/product",
     }]
@@ -94,7 +97,7 @@ def test_merge_preserves_cj_identity_and_flags_conflicting_ids():
 
 def test_verified_candidates_are_scored_and_sorted():
     workflow = ResearchWorkflow(ResearchRequest())
-    base = {"status":"VERIFIED","supplier":"CJ Dropshipping","us_warehouse":True,"customer_problem":"Solves cable clutter","ad_potential":"HIGH","risk_level":"LOW","customer_problem":"Solves cable clutter","ad_potential":"HIGH","risk_level":"LOW","delivery_days":(4,8),"product_cost":5.0,"shipping_cost":4.0,"retail_price":24.99,"trend_12m":"growing","trend_5y":"stable","trend_growth_signal":"GROWING","trend_long_term_signal":"GROWING","seasonality_signal":True,"shipping_evidence":{"source":"CJ Freight Calculation","destination":"US"},"source_url":"https://example.com/product"}
+    base = {"status":"VERIFIED","supplier":"CJ Dropshipping","us_warehouse":True,"customer_problem":"Solves cable clutter","ad_potential":"HIGH","risk_level":"LOW","delivery_days":(4,8),"product_cost":5.0,"shipping_cost":4.0,"retail_price":24.99,"trend_12m":"growing","trend_5y":"stable","trend_growth_signal":"GROWING","trend_long_term_signal":"GROWING","seasonality_signal":True,"shipping_evidence":{"source":"CJ Freight Calculation","destination":"US"},"source_url":"https://example.com/product"}
     workflow.state.candidates = [dict(base, name="A"), dict(base, name="B", retail_price=20.0, product_cost=7.0, shipping_cost=5.0, trend_growth_signal="STABLE")]
     final = workflow.final_candidates()
     assert [x["name"] for x in final] == ["A", "B"]
