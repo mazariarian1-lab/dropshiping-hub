@@ -56,3 +56,26 @@ def test_request_rejects_non_usa_or_non_us_warehouse_configuration():
     errors = request.validate()
     assert "market must be USA" in errors
     assert "preferred_warehouse must remain US" in errors
+
+
+def test_gate_calculates_landed_cost_and_margin():
+    workflow = ResearchWorkflow(ResearchRequest())
+    workflow.state.candidates = [{
+        "status":"VERIFIED","supplier":"CJ Dropshipping","us_warehouse":True,
+        "delivery_days":(4,8),"product_cost":5.0,"shipping_cost":4.0,
+        "retail_price":24.99,"trend_12m":"growing","trend_5y":"stable",
+        "source_url":"https://example.com/product","gross_margin_percent":63.99,
+    }]
+    final = workflow.final_candidates()
+    assert len(final) == 1
+    assert final[0]["landed_cost"] == 9.0
+    assert final[0]["calculated_gross_margin_percent"] == 63.99
+
+def test_gate_rejects_missing_shipping_even_when_product_cost_exists():
+    workflow = ResearchWorkflow(ResearchRequest())
+    workflow.state.candidates = [{
+        "status":"VERIFIED","supplier":"CJ Dropshipping","us_warehouse":True,
+        "delivery_days":(4,8),"product_cost":5.0,"retail_price":24.99,
+        "trend_12m":"growing","trend_5y":"stable","source_url":"https://example.com/product",
+    }]
+    assert workflow.final_candidates() == []
