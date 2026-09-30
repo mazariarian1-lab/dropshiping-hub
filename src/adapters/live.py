@@ -1,5 +1,5 @@
 """Environment-configured live adapters. Credentials are never returned in AdapterResult."""
-import json, os
+import json, os, re
 from datetime import datetime, timezone
 from urllib.parse import quote
 from .base import AdapterCapabilities, AdapterResult, ResearchAdapter
@@ -9,7 +9,8 @@ def _now(): return datetime.now(timezone.utc).isoformat()
 
 def _json_candidates(text):
     if not isinstance(text, str): return []
-    text=text.strip().replace("```json","").replace("```","").strip()
+    text=text.strip()
+    if text.startswith("```"): text=text.replace("```json","").replace("```","").strip()
     try: data=json.loads(text)
     except json.JSONDecodeError: return []
     candidates=data.get("candidates", []) if isinstance(data, dict) else data if isinstance(data, list) else []
@@ -54,107 +55,51 @@ class ClaudeAdapter(ResearchAdapter):
 
 class CJDropshippingAdapter(ResearchAdapter):
     capabilities=AdapterCapabilities("cj_dropshipping","supplier_validation","supplier_catalog",("supplier","US warehouse","cost","fulfillment","inventory"))
-
     def research(self,request,request_id):
         key=os.getenv("CJ_API_KEY")
-        if not key:
-            return AdapterResult.not_connected("cj_dropshipping",request_id,"CJ_API_KEY is not configured.")
+        if not key: return AdapterResult.not_connected("cj_dropshipping",request_id,"CJ_API_KEY is not configured.")
         try:
             auth=post_json("https://developers.cjdropshipping.com/api2.0/v1/authentication/getAccessToken",{"apiKey":key})
             token=auth.get("data",{}).get("accessToken")
-            if not token:
-                return AdapterResult("cj_dropshipping","BLOCKED",request_id,_now(),unknowns=["CJ authentication did not return an access token."])
-
+            if not token: return AdapterResult("cj_dropshipping","BLOCKED",request_id,_now(),unknowns=["CJ authentication did not return an access token."])
             headers={"CJ-Access-Token":token}
             keyword=request.get("keyword") or request.get("product_keyword")
             url="https://developers.cjdropshipping.com/api2.0/v1/product/listV2?page=1&size=10&countryCode=US&verifiedWarehouse=1"
-            if keyword:
-                url += "&keyWord="+quote(str(keyword))
-            data=get_json(url,headers)
-            raw=data.get("data",{})
+            if keyword: url += "&keyWord="+quote(str(keyword))
+            data=get_json(url,headers); raw=data.get("data",{})
             rows=raw.get("list",[]) if isinstance(raw,dict) else raw if isinstance(raw,list) else []
-            candidates=[]
-            findings=[]
+            candidates=[]; findings=[]
             for row in rows:
-                if not isinstance(row,dict):
-                    continue
-                name=row.get("productNameEn") or row.get("productName") or row.get("name")
-                pid=row.get("pid") or row.get("productId")
-                if not name:
-                    continue
-
-                candidate={
-                    "name":name,
-                    "supplier":"CJ Dropshipping",
-                    "us_warehouse":True,
-                    "source_url":row.get("productUrl") or row.get("url") or "",
-                    "product_id":pid,
-                    "product_cost":row.get("sellPrice") or row.get("price"),
-                }
-                if row.get("deliveryCycle") is not None:
-                    candidate["delivery_days"]=row.get("deliveryCycle")
-
-                # Product detail gives a stronger identity and supplier link when available.
+                if not isinstance(row,dict): continue
+                name=row.get("productNameEn") or row.get("productName") or row.get("name"); pid=row.get("pid") or row.get("productId")
+                if not name: continue
+                candidate={"name":name,"supplier":"CJ Dropshipping","us_warehouse":True,"source_url":row.get("productUrl") or row.get("url") or "","product_id":pid,"product_cost":row.get("sellPrice") or row.get("price")}
+                if row.get("deliveryCycle") is not None: candidate["delivery_days"]=row.get("deliveryCycle")
                 if pid:
-                    detail=get_json("https://developers.cjdropshipping.com/api2.0/v1/product/query?pid="+quote(str(pid)),headers)
-                    detail_data=detail.get("data",{}) if isinstance(detail,dict) else {}
-                    if isinstance(detail_data,dict):
-                        candidate["product_sku"]=detail_data.get("productSku") or detail_data.get("sku")
-                        candidate["source_url"]=detail_data.get("supplierLink") or detail_data.get("productUrl") or candidate["source_url"]
-                        candidate["product_cost"]=detail_data.get("sellPrice") or candidate.get("product_cost")
-                        candidate["delivery_days"]=detail_data.get("deliveryCycle") or candidate.get("delivery_days")
-
-# Exact variant + USA freight evidence; never infer shipping.
-                variant_data=get_json("https://developers.cjdropshipping.com/api2.0/v1/product/variant/query?pid="+quote(str(pid)),headers)
-                variants=variant_data.get("data",{}).get("list",[]) if isinstance(variant_data.get("data",{}),dict) else []
-                if variants:
-                    v=variants[0]
-                    candidate["variant_id"]=v.get("vid") or v.get("variantId")
-                    candidate["variant_sku"]=v.get("variantSku") or v.get("sku")
-                    candidate["variant_cost"]=v.get("sellPrice") or v.get("price") or candidate.get("product_cost")
+                    detail=get_json("https://developers.cjdropshipping.com/api2.0/v1/product/query?pid="+quote(str(pid)),headers); dd=detail.get("data",{}) if isinstance(detail,dict) else {}
+                    if isinstance(dd,dict):
+                        candidate["product_sku"]=dd.get("productSku") or dd.get("sku"); candidate["source_url"]=dd.get("supplierLink") or dd.get("productUrl") or candidate["source_url"]; candidate["product_cost"]=dd.get("sellPrice") or candidate.get("product_cost"); candidate["delivery_days"]=dd.get("deliveryCycle") or candidate.get("delivery_days")
+                    variant_data=get_json("https://developers.cjdropshipping.com/api2.0/v1/product/variant/query?pid="+quote(str(pid)),headers); vd=variant_data.get("data",{}) if isinstance(variant_data,dict) else {}; variants=vd.get("list",[]) if isinstance(vd,dict) else []
+                    if variants:
+                        v=variants[0]; candidate["variant_id"]=v.get("vid") or v.get("variantId"); candidate["variant_sku"]=v.get("variantSku") or v.get("sku"); candidate["variant_cost"]=v.get("sellPrice") or v.get("price") or candidate.get("product_cost")
                 vid=candidate.get("variant_id")
                 if vid:
-                    freight=post_json("https://developers.cjdropshipping.com/api2.0/v1/logistic/freightCalculate",{"startCountryCode":"CN","endCountryCode":"US","products":[{"quantity":1,"vid":vid}]},headers)
-                    rows=freight.get("data",[]) if isinstance(freight,dict) else []
-                    usable=[x for x in rows if isinstance(x,dict) and x.get("logisticPrice") is not None]
-                    if usable:
-                        valid=[]
-                        for option in usable:
-            aging=option.get("logisticAging")
-            if isinstance(aging,(list,tuple)) and len(aging)>=2:
-                lo,hi=int(aging[0]),int(aging[1])
-            elif isinstance(aging,(int,float)):
-                lo=hi=int(aging)
-            else:
-                import re
-                nums=[int(x) for x in re.findall(r"\\d+",str(aging or ""))]
-                lo,hi=(min(nums),max(nums)) if len(nums)>=2 else (nums[0],nums[0]) if nums else (None,None)
-            if lo is not None and hi is not None and lo>=4 and hi<=12:
-                option=dict(option); option["_delivery_days"]=(lo,hi); valid.append(option)
-        if valid:
-            best=min(valid,key=lambda x:float(x.get("logisticPrice",0)))
-            candidate["shipping_cost"]=float(best["logisticPrice"])
-            candidate["delivery_days"]=best["_delivery_days"]
-            candidate["shipping_method"]=best.get("logisticName")
-            candidate["shipping_evidence"]={"source":"CJ Freight Calculation","destination":"US","variant_id":vid,"delivery_days":candidate["delivery_days"]}
-        else:
-            candidate["unknowns"].append("CJ returned no USA shipping option within the required 4-12 day delivery window.")
-    else: candidate["unknowns"].append("CJ returned no usable USA freight option for this variant.")
-
-                    inventory=get_json("https://developers.cjdropshipping.com/api2.0/v1/product/stock/getInventoryByPid?pid="+quote(str(pid)),headers)
-                    inventory_data=inventory.get("data",{}) if isinstance(inventory,dict) else {}
-                    inventories=inventory_data.get("inventories",[]) if isinstance(inventory_data,dict) else []
-                    us_rows=[x for x in inventories if isinstance(x,dict) and str(x.get("areaEn","")).lower()=="us warehouse"]
-                    candidate["us_inventory_verified"]=bool(us_rows)
-                    candidate["us_inventory_quantity"]=sum(int(x.get("totalInventory",0) or 0) for x in us_rows if str(x.get("totalInventory","")).isdigit())
-
+                    freight=post_json("https://developers.cjdropshipping.com/api2.0/v1/logistic/freightCalculate",{"startCountryCode":"CN","endCountryCode":"US","products":[{"quantity":1,"vid":vid}]},headers); freight_rows=freight.get("data",[]) if isinstance(freight,dict) else []; valid=[]
+                    for option in freight_rows:
+                        if not isinstance(option,dict) or option.get("logisticPrice") is None: continue
+                        aging=option.get("logisticAging")
+                        if isinstance(aging,(list,tuple)) and len(aging)>=2: lo,hi=int(aging[0]),int(aging[1])
+                        elif isinstance(aging,(int,float)): lo=hi=int(aging)
+                        else:
+                            nums=[int(x) for x in re.findall(r"\d+",str(aging or ""))]; lo,hi=(min(nums),max(nums)) if len(nums)>=2 else ((nums[0],nums[0]) if nums else (None,None))
+                        if lo is not None and hi is not None and lo>=4 and hi<=12: option["_delivery_days"]=(lo,hi); valid.append(option)
+                    if valid:
+                        best=min(valid,key=lambda x:float(x.get("logisticPrice",0))); candidate["shipping_cost"]=float(best["logisticPrice"]); candidate["delivery_days"]=best["_delivery_days"]; candidate["shipping_method"]=best.get("logisticName"); candidate["shipping_evidence"]={"source":"CJ Freight Calculation","destination":"US","variant_id":vid,"delivery_days":candidate["delivery_days"]}
+                    else: candidate.setdefault("unknowns",[]).append("CJ returned no USA shipping option within the required 4-12 day delivery window.")
+                if pid:
+                    inventory=get_json("https://developers.cjdropshipping.com/api2.0/v1/product/stock/getInventoryByPid?pid="+quote(str(pid)),headers); inv=inventory.get("data",{}) if isinstance(inventory,dict) else {}; inventories=inv.get("inventories",[]) if isinstance(inv,dict) else []
+                    us_rows=[x for x in inventories if isinstance(x,dict) and str(x.get("areaEn","")).lower()=="us warehouse"]; candidate["us_inventory_verified"]=bool(us_rows); candidate["us_inventory_quantity"]=sum(int(x.get("totalInventory",0) or 0) for x in us_rows if str(x.get("totalInventory","")).isdigit())
                 candidate["evidence"]=[{"source":"CJ Dropshipping API","warehouse_filter":"US","verifiedWarehouse":1,"product_id":pid}]
-                candidate.setdefault("unknowns",[]).append("Destination-specific USA shipping requires a valid CJ freight result.")
-                candidates.append(candidate)
-                findings.append(candidate)
-
-            return AdapterResult("cj_dropshipping","COMPLETE",request_id,_now(),
-                                 candidates=candidates,findings=findings,
-                                 recommended_next_checks=["Calculate destination-specific freight and delivery before VERIFIED."])
-        except RuntimeError as exc:
-            return AdapterResult("cj_dropshipping","BLOCKED",request_id,_now(),unknowns=[str(exc)])
+                candidates.append(candidate); findings.append(candidate)
+            return AdapterResult("cj_dropshipping","COMPLETE",request_id,_now(),candidates=candidates,findings=findings)
+        except RuntimeError as exc: return AdapterResult("cj_dropshipping","BLOCKED",request_id,_now(),unknowns=[str(exc)])
