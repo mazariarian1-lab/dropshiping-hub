@@ -60,8 +60,13 @@ class CJDropshippingAdapter(ResearchAdapter):
         if not key: return AdapterResult.not_connected("cj_dropshipping",request_id,"CJ_API_KEY is not configured.")
         try:
             auth=post_json("https://developers.cjdropshipping.com/api2.0/v1/authentication/getAccessToken",{"apiKey":key})
-            token=auth.get("data",{}).get("accessToken")
-            if not token: return AdapterResult("cj_dropshipping","BLOCKED",request_id,_now(),unknowns=["CJ authentication did not return an access token."])
+            auth_data=auth.get("data") if isinstance(auth,dict) else None
+            token=auth_data.get("accessToken") if isinstance(auth_data,dict) else None
+            if not token:
+                message=(auth.get("message") or auth.get("msg")) if isinstance(auth,dict) else None
+                reason="CJ authentication did not return an access token."
+                if message: reason += f" Response message: {message}"
+                return AdapterResult("cj_dropshipping","BLOCKED",request_id,_now(),unknowns=[reason])
             headers={"CJ-Access-Token":token}
             keyword=request.get("keyword") or request.get("product_keyword")
             url="https://developers.cjdropshipping.com/api2.0/v1/product/listV2?page=1&size=10&countryCode=US&verifiedWarehouse=1"
