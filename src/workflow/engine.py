@@ -47,6 +47,18 @@ class ResearchWorkflow:
         self.state.stage = Stage.EVIDENCE_GATE
         return self.state
 
+    @staticmethod
+    def _score(candidate: Dict) -> float:
+        margin = float(candidate.get("calculated_gross_margin_percent", 0))
+        score = min(max((margin - 40.0) / 60.0, 0.0), 1.0) * 30.0
+        score += {"GROWING": 20.0, "STABLE": 10.0, "DECLINING": 0.0}.get(str(candidate.get("trend_growth_signal", "")).upper(), 0.0)
+        score += {"GROWING": 15.0, "STABLE": 8.0, "DECLINING": 0.0}.get(str(candidate.get("trend_long_term_signal", "")).upper(), 0.0)
+        delivery = candidate.get("delivery_days")
+        if isinstance(delivery, (tuple, list)) and len(delivery) == 2:
+            midpoint = (float(delivery[0]) + float(delivery[1])) / 2.0
+            score += max(0.0, min(15.0, (12.0 - midpoint) / 8.0 * 15.0))
+        if candidate.get("seasonality_signal") is True: score += 5.0
+        return round(min(score, 100.0), 2)
     def final_candidates(self) -> List[Dict]:
         eligible = []
         for candidate in self.state.candidates:
@@ -58,7 +70,9 @@ class ResearchWorkflow:
             )
             candidate["blockers"] = blockers
             if not blockers:
+                candidate["product_score"] = self._score(candidate)
                 eligible.append(candidate)
+        eligible.sort(key=lambda item: item.get("product_score", 0), reverse=True)
         self.state.stage = Stage.FINAL if eligible else Stage.EVIDENCE_GATE
         return eligible[: self.state.request.max_final_candidates]
 
