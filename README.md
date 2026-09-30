@@ -14,7 +14,9 @@ A beginner-friendly, evidence-first foundation for an AI-assisted USA dropshippi
 - Optional Perplexity, Gemini, Claude live adapters
 - Optional free Google Trends collection through `pytrends`
 - Credential-aware fallback to safe stubs
-- Manual GitHub Actions deep-research workflow with downloadable JSON report
+- Scheduled + manual GitHub Actions deep-research workflow with downloadable JSON report
+- Optional TikTok Commercial Content evidence adapter
+- CJ-backed discovery fallback when independent discovery produces no candidates
 - Automated pytest coverage
 
 ## Core principles
@@ -35,7 +37,9 @@ A beginner-friendly, evidence-first foundation for an AI-assisted USA dropshippi
 4. Optionally enter a product keyword.
 5. After the run, download the **research-report** artifact.
 
-The workflow can use `CJ_API_KEY`, plus optional `PERPLEXITY_API_KEY`, `GEMINI_API_KEY`, and `ANTHROPIC_API_KEY` repository secrets. Missing credentials do not create fake evidence.
+The workflow can use `CJ_API_KEY`, plus optional `PERPLEXITY_API_KEY`, `GEMINI_API_KEY`, `ANTHROPIC_API_KEY`, and `TIKTOK_COMMERCIAL_CONTENT_TOKEN` repository secrets. Missing credentials do not create fake evidence.
+
+A scheduled Deep Research run is configured weekly; the workflow also supports manual keyword runs.
 
 ## Important behavior
 
@@ -53,4 +57,4 @@ The system is allowed to return **zero** final products. A product is not marked
 
 ## Status
 
-🟡 **Functional foundation / live research wiring complete.** Final product verification still depends on the availability and quality of live evidence at run time.
+🟡 **Evidence-first research engine wired end-to-end.** Automated tests and live research are configured, but this repository integration cannot truthfully claim a live verified product until a GitHub Actions run completes with the required external credentials and usable evidence. Shopify publishing remains intentionally separate until research verification is proven.
