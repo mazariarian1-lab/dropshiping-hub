@@ -44,4 +44,13 @@ def merge_packets(packets: Iterable[dict[str, Any]]) -> list[dict[str, Any]]:
                 target["unknowns"].append(f"Resolve conflicting evidence for {field}.")
         if target["conflicts"]:
             target["status"] = "NEEDS LIVE VERIFICATION"
+        else:
+            sources={str(e.get("source","")) for e in target.get("evidence",[]) if isinstance(e,dict)}
+            ready=("CJ Dropshipping API" in sources and any("Google Trends" in s for s in sources)
+                   and isinstance(target.get("shipping_evidence"),dict)
+                   and target.get("shipping_evidence",{}).get("destination")=="US"
+                   and target.get("customer_problem") not in (None,"","UNKNOWN")
+                   and target.get("ad_potential") not in (None,"","UNKNOWN")
+                   and target.get("risk_level") not in (None,"","UNKNOWN"))
+            if ready: target["status"]="VERIFIED"
     return list(merged.values())
