@@ -87,6 +87,17 @@ def run_research(request=None, keyword=None):
     ))
     workflow.ingest_packets(packets)
     final = workflow.final_candidates()
+    adapter_diagnostics = [
+        {
+            "adapter": packet.get("adapter"),
+            "status": packet.get("status"),
+            "unknowns": packet.get("unknowns", []),
+        }
+        for packet in packets
+        if packet.get("status") not in {"COMPLETE"} or packet.get("unknowns")
+    ]
+    summary = workflow.summary()
+    summary["adapter_diagnostics"] = adapter_diagnostics
     return {
         "request_id": request_id,
         "generated_at": datetime.now(timezone.utc).isoformat(),
@@ -94,5 +105,5 @@ def run_research(request=None, keyword=None):
         "request": asdict(request),
         "candidates": workflow.state.candidates,
         "final_candidates": final,
-        "summary": workflow.summary(),
+        "summary": summary,
     }
