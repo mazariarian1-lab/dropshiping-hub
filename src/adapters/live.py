@@ -104,6 +104,27 @@ class CJDropshippingAdapter(ResearchAdapter):
                         candidate["product_cost"]=detail_data.get("sellPrice") or candidate.get("product_cost")
                         candidate["delivery_days"]=detail_data.get("deliveryCycle") or candidate.get("delivery_days")
 
+# Exact variant + USA freight evidence; never infer shipping.
+variant_data=get_json("https://developers.cjdropshipping.com/api2.0/v1/product/variant/query?pid="+quote(str(pid)),headers)
+variants=variant_data.get("data",{}).get("list",[]) if isinstance(variant_data.get("data",{}),dict) else []
+if variants:
+    v=variants[0]
+    candidate["variant_id"]=v.get("vid") or v.get("variantId")
+    candidate["variant_sku"]=v.get("variantSku") or v.get("sku")
+    candidate["variant_cost"]=v.get("sellPrice") or v.get("price") or candidate.get("product_cost")
+vid=candidate.get("variant_id")
+if vid:
+    freight=post_json("https://developers.cjdropshipping.com/api2.0/v1/logistic/freightCalculate",{"startCountryCode":"CN","endCountryCode":"US","products":[{"quantity":1,"vid":vid}]},headers)
+    rows=freight.get("data",[]) if isinstance(freight,dict) else []
+    usable=[x for x in rows if isinstance(x,dict) and x.get("logisticPrice") is not None]
+    if usable:
+        best=min(usable,key=lambda x:float(x.get("logisticPrice",0)))
+        candidate["shipping_cost"]=float(best["logisticPrice"])
+        candidate["delivery_days"]=best.get("logisticAging") or candidate.get("delivery_days")
+        candidate["shipping_method"]=best.get("logisticName")
+        candidate["shipping_evidence"]={"source":"CJ Freight Calculation","destination":"US","variant_id":vid}
+    else: candidate["unknowns"].append("CJ returned no usable USA freight option for this variant.")
+
                     inventory=get_json("https://developers.cjdropshipping.com/api2.0/v1/product/stock/getInventoryByPid?pid="+quote(str(pid)),headers)
                     inventory_data=inventory.get("data",{}) if isinstance(inventory,dict) else {}
                     inventories=inventory_data.get("inventories",[]) if isinstance(inventory_data,dict) else []
