@@ -36,7 +36,12 @@ def merge_packets(packets: Iterable[dict[str, Any]]) -> list[dict[str, Any]]:
             target["unknowns"].extend(x for x in candidate.get("unknowns", []) if x not in target["unknowns"])
     for key, target in merged.items():
         for field, values in observations[key].items():
-            distinct = list(dict.fromkeys(values))
+            # Critical observations may be structured dict/list values.
+            # Deduplicate by equality rather than hashing so structured evidence cannot crash the merge.
+            distinct = []
+            for value in values:
+                if not any(value == existing for existing in distinct):
+                    distinct.append(value)
             if len(distinct) == 1:
                 target[field] = distinct[0]
             elif len(distinct) > 1:
