@@ -50,14 +50,18 @@ class ResearchWorkflow:
     @staticmethod
     def _score(candidate: Dict) -> float:
         margin = float(candidate.get("calculated_gross_margin_percent", 0))
-        score = min(max((margin - 40.0) / 60.0, 0.0), 1.0) * 30.0
-        score += {"GROWING": 20.0, "STABLE": 10.0, "DECLINING": 0.0}.get(str(candidate.get("trend_growth_signal", "")).upper(), 0.0)
-        score += {"GROWING": 15.0, "STABLE": 8.0, "DECLINING": 0.0}.get(str(candidate.get("trend_long_term_signal", "")).upper(), 0.0)
+        score = min(max((margin - 40.0) / 60.0, 0.0), 1.0) * 25.0
+        score += {"GROWING": 15.0, "STABLE": 8.0, "DECLINING": 0.0}.get(str(candidate.get("trend_growth_signal", "")).upper(), 0.0)
+        score += {"GROWING": 10.0, "STABLE": 5.0, "DECLINING": 0.0}.get(str(candidate.get("trend_long_term_signal", "")).upper(), 0.0)
         delivery = candidate.get("delivery_days")
         if isinstance(delivery, (tuple, list)) and len(delivery) == 2:
             midpoint = (float(delivery[0]) + float(delivery[1])) / 2.0
-            score += max(0.0, min(15.0, (12.0 - midpoint) / 8.0 * 15.0))
+            score += max(0.0, min(10.0, (12.0 - midpoint) / 8.0 * 10.0))
         if candidate.get("seasonality_signal") is True: score += 5.0
+        score += {"LOW": 10.0, "MEDIUM": 5.0, "HIGH": 0.0}.get(str(candidate.get("competition", "")).upper(), 0.0)
+        score += {"HIGH": 10.0, "MEDIUM": 6.0, "LOW": 2.0}.get(str(candidate.get("ad_potential", "")).upper(), 0.0)
+        score += {"LOW": 10.0, "MEDIUM": 5.0, "HIGH": 0.0}.get(str(candidate.get("risk_level", "")).upper(), 0.0)
+        if candidate.get("customer_problem"): score += 5.0
         return round(min(score, 100.0), 2)
     def final_candidates(self) -> List[Dict]:
         eligible = []
