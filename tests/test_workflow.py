@@ -102,3 +102,56 @@ def test_verified_candidates_are_scored_and_sorted():
     final = workflow.final_candidates()
     assert [x["name"] for x in final] == ["A", "B"]
     assert final[0]["product_score"] > final[1]["product_score"]
+
+
+
+def test_end_to_end_mocked_live_evidence_reaches_verified():
+    import src.research as research
+    from src.adapters.base import AdapterResult
+
+    class FakeAdapter:
+        def __init__(self, name):
+            self.name = name
+
+        def research(self, request, request_id):
+            name = "Magnetic Cable Organizer"
+            base = {
+                "name": name,
+                "customer_problem": "Keeps charging cables from falling behind the desk.",
+                "ad_potential": "HIGH",
+                "risk_level": "LOW",
+                "supplier": "CJ Dropshipping",
+                "us_warehouse": True,
+                "delivery_days": (4, 7),
+                "product_cost": 3.0,
+                "shipping_cost": 4.0,
+                "retail_price": 19.99,
+                "trend_12m": {"direction": "GROWING", "change_percent": 25},
+                "trend_5y": {"direction": "STABLE", "change_percent": 4},
+                "source_url": "https://example.invalid/product",
+                "product_id": "pid-1",
+                "variant_id": "vid-1",
+            }
+            if self.name == "perplexity":
+                base["evidence"] = [{"source": "Perplexity"}]
+            elif self.name == "cj_dropshipping":
+                base["evidence"] = [{"source": "CJ Dropshipping API"}]
+                base["shipping_evidence"] = {"source": "CJ Freight Calculation", "destination": "US"}
+            elif self.name == "google_trends":
+                base["evidence"] = [{"source": "Google Trends via pytrends"}]
+            elif self.name == "tiktok_ads":
+                base["evidence"] = [{"source": "TikTok Commercial Content API"}]
+            return AdapterResult(self.name, "COMPLETE", request_id, "2026-01-01T00:00:00+00:00", candidates=[base])
+
+    def fake_registry():
+        return {name: FakeAdapter(name) for name in ["perplexity", "gemini", "claude", "cj_dropshipping", "google_trends", "tiktok_ads"]}
+
+    research.build_configured_registry = fake_registry
+    result = research.run_research()
+    assert result["status"] == "READY_FOR_HUMAN_REVIEW"
+    assert len(result["final_candidates"]) == 1
+    candidate = result["final_candidates"][0]
+    assert candidate["status"] == "VERIFIED"
+    assert candidate["product_score"] > 0
+    assert "score_breakdown" in candidate
+
