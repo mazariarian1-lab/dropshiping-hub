@@ -90,3 +90,12 @@ def test_merge_preserves_cj_identity_and_flags_conflicting_ids():
     assert len(state.candidates) == 1
     assert state.candidates[0]["status"] == "NEEDS LIVE VERIFICATION"
     assert any(x["field"] == "product_id" for x in state.candidates[0]["conflicts"])
+
+
+def test_verified_candidates_are_scored_and_sorted():
+    workflow = ResearchWorkflow(ResearchRequest())
+    base = {"status":"VERIFIED","supplier":"CJ Dropshipping","us_warehouse":True,"delivery_days":(4,8),"product_cost":5.0,"shipping_cost":4.0,"retail_price":24.99,"trend_12m":"growing","trend_5y":"stable","trend_growth_signal":"GROWING","trend_long_term_signal":"GROWING","seasonality_signal":True,"shipping_evidence":{"source":"CJ Freight Calculation","destination":"US"},"source_url":"https://example.com/product"}
+    workflow.state.candidates = [dict(base, name="A"), dict(base, name="B", retail_price=20.0, product_cost=7.0, shipping_cost=5.0, trend_growth_signal="STABLE")]
+    final = workflow.final_candidates()
+    assert [x["name"] for x in final] == ["A", "B"]
+    assert final[0]["product_score"] > final[1]["product_score"]
