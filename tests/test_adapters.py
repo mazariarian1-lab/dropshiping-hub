@@ -2,7 +2,7 @@ from src.adapters import AdapterCapabilities, AdapterResult, build_default_regis
 
 def test_default_registry_contains_all_research_roles():
     registry = build_default_registry()
-    assert set(registry) == {"perplexity","gemini","claude","google_trends","cj_dropshipping"}
+    assert set(registry) == {"perplexity","gemini","claude","google_trends","cj_dropshipping","tiktok_ads"}
 
 def test_unconnected_adapter_never_fabricates_evidence():
     result = build_default_registry()["cj_dropshipping"].research({"market":"USA"}, "req-001")
