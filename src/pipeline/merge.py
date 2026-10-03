@@ -25,7 +25,7 @@ def merge_packets(packets: Iterable[dict[str, Any]]) -> list[dict[str, Any]]:
                     continue
                 if field in CRITICAL_FIELDS:
                     observations[key][field].append(value)
-                elif field not in target:
+                elif field not in target or target.get(field) in (None, "", "UNKNOWN", "NEEDS LIVE VERIFICATION"):
                     target[field] = value
             target["evidence"].extend(x for x in candidate.get("evidence", []) if x not in target["evidence"])
             # Preserve exact CJ identity separately so similarly named products cannot silently substitute for each other.
