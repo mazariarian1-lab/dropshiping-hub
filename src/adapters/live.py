@@ -222,6 +222,15 @@ class CJDropshippingAdapter(ResearchAdapter):
                     "shipping_cost":shipping_cost,
                     "delivery_days":delivery_days,
                     "shipping_method":best.get("logisticName") or best.get("logisticNameEn") or best.get("name"),
+                    "shipping_evidence":{
+                        "source":"CJ Freight Calculation",
+                        "source_type":"first_party",
+                        "origin":"US",
+                        "destination":"US",
+                        "variant_id":vid,
+                        "delivery_days":delivery_days,
+                        "shipping_cost":shipping_cost,
+                    },
                     "source_url":dd.get("supplierLink") or dd.get("productUrl") or row.get("productUrl") or row.get("url") or "",
                     "evidence":[
                         {"source":"CJ Dropshipping API","source_type":"first_party","claim":"product filtered for US inventory","product_id":pid},
