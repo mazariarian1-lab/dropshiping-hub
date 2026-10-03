@@ -33,18 +33,25 @@ jobs:
           RESEARCH_KEYWORD: ${{ inputs.keyword }}
         run: |
           python - <<'PY'
-          import json, os
+          import json
+          import os
           from src.research import run_research
+          from src.reporting import render_markdown_report
+
           result = run_research(keyword=os.getenv("RESEARCH_KEYWORD") or None)
+
           with open("research-report.json", "w", encoding="utf-8") as f:
               json.dump(result, f, ensure_ascii=False, indent=2)
-          from src.reporting import render_markdown_report
+
           with open("research-report.md", "w", encoding="utf-8") as f:
               f.write(render_markdown_report(result))
+
           print(json.dumps(result["summary"], ensure_ascii=False, indent=2))
           PY
       - name: Upload research report
         uses: actions/upload-artifact@v4
         with:
           name: research-report
-          path: |\n            research-report.json\n            research-report.md
+          path: |
+            research-report.json
+            research-report.md
