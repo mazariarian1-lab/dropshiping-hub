@@ -18,6 +18,10 @@ A beginner-friendly, evidence-first foundation for an AI-assisted USA dropshippi
 - Optional TikTok Commercial Content evidence adapter
 - CJ-backed discovery fallback when independent discovery produces no candidates
 - Automated pytest coverage
+- Credential-safe connection diagnostics
+- Conservative verification layer before evidence gates
+- Human-readable Markdown research report artifact
+- Post-verification handoff for Shopify, Canva, and bundle/AOV tooling
 
 ## Core principles
 
@@ -57,4 +61,4 @@ The system is allowed to return **zero** final products. A product is not marked
 
 ## Status
 
-🟡 **Evidence-first research engine wired end-to-end.** Automated tests and live research are configured, but this repository integration cannot truthfully claim a live verified product until a GitHub Actions run completes with the required external credentials and usable evidence. Shopify publishing remains intentionally separate until research verification is proven.
+🟡 **Evidence-first research engine wired end-to-end.** Connection diagnostics, verification safeguards, and Markdown reporting are now included. Automated tests and live research are configured, but this repository integration cannot truthfully claim a live verified product until a GitHub Actions run completes with usable external evidence. Automated tests and live research are configured, but this repository integration cannot truthfully claim a live verified product until a GitHub Actions run completes with the required external credentials and usable evidence. Shopify publishing remains intentionally separate until research verification is proven.
