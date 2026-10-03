@@ -41,7 +41,7 @@ class GoogleTrendsAdapter:
                        "trend_growth_signal":recent_summary.get("direction"),
                        "trend_long_term_signal":long_summary.get("direction"),
                        "seasonality_signal":bool(recent_summary.get("peak_position_percent") not in (0,100)),
-                       "evidence":[{"source":"Google Trends via pytrends","keyword":str(keyword),"geo":"US","retrieved_at":_now()}]}
+                       "evidence":[{"source":"Google Trends via pytrends","source_type":"unofficial_client","keyword":str(keyword),"geo":"US","retrieved_at":_now()}]}
             return AdapterResult("google_trends","COMPLETE",request_id,_now(),candidates=[candidate],findings=[candidate])
         except ImportError:
             return AdapterResult("google_trends","BLOCKED",request_id,_now(),unknowns=["pytrends is not installed; live Google Trends collection is unavailable."])
