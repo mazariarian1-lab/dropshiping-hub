@@ -9,7 +9,7 @@ def test_prompt_contains_owner_constraints():
 
 
 def test_research_without_credentials_is_safe(monkeypatch):
-    for key in ["PERPLEXITY_API_KEY", "GEMINI_API_KEY", "ANTHROPIC_API_KEY", "CJ_API_KEY", "GOOGLE_TRENDS_ENABLED"]:
+    for key in ["PERPLEXITY_API_KEY", "GEMINI_API_KEY", "ANTHROPIC_API_KEY", "CJ_API_KEY", "GOOGLE_TRENDS_ENABLED", "TIKTOK_COMMERCIAL_CONTENT_TOKEN"]:
         monkeypatch.delenv(key, raising=False)
     result = run_research(ResearchRequest())
     assert result["status"] == "NO_VERIFIED_CANDIDATES"
@@ -51,5 +51,6 @@ def test_live_checks_run_after_discovery(monkeypatch):
     candidate = next(c for c in result["candidates"] if c["name"] == "Cable Organizer")
     assert candidate["trend_12m"] == "growing"
     assert candidate["supplier"] == "CJ Dropshipping"
-    assert candidate["status"] == "RESEARCH CANDIDATE"
+    # The conservative verifier intentionally downgrades incomplete evidence.
+    assert candidate["status"] == "NEEDS LIVE VERIFICATION"
     assert result["final_candidates"] == []
