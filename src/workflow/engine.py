@@ -6,6 +6,7 @@ from typing import Dict, List
 
 from .research_request import ResearchRequest
 from .gates import evaluate_candidate
+from .verification import verify_candidates
 from src.pipeline import merge_packets
 
 class Stage(str, Enum):
@@ -42,8 +43,9 @@ class ResearchWorkflow:
         return self.state
 
     def ingest_packets(self, packets: List[Dict]) -> WorkflowState:
-        """Merge specialist outputs before deterministic decision gates."""
-        self.state.candidates = merge_packets(packets)
+        """Merge specialist outputs, then apply conservative verification metadata."""
+        merged = merge_packets(packets)
+        self.state.candidates = verify_candidates(merged)
         self.state.stage = Stage.EVIDENCE_GATE
         return self.state
 
@@ -57,11 +59,13 @@ class ResearchWorkflow:
         if isinstance(delivery, (tuple, list)) and len(delivery) == 2:
             midpoint = (float(delivery[0]) + float(delivery[1])) / 2.0
             score += max(0.0, min(10.0, (12.0 - midpoint) / 8.0 * 10.0))
-        if candidate.get("seasonality_signal") is True: score += 5.0
+        if candidate.get("seasonality_signal") is True:
+            score += 5.0
         score += {"LOW": 10.0, "MEDIUM": 5.0, "HIGH": 0.0}.get(str(candidate.get("competition", "")).upper(), 0.0)
         score += {"HIGH": 10.0, "MEDIUM": 6.0, "LOW": 2.0}.get(str(candidate.get("ad_potential", "")).upper(), 0.0)
         score += {"LOW": 10.0, "MEDIUM": 5.0, "HIGH": 0.0}.get(str(candidate.get("risk_level", "")).upper(), 0.0)
-        if candidate.get("customer_problem"): score += 5.0
+        if candidate.get("customer_problem"):
+            score += 5.0
         return round(min(score, 100.0), 2)
 
     @staticmethod
@@ -77,6 +81,7 @@ class ResearchWorkflow:
             "risk": candidate.get("risk_level"),
             "consumer_problem": bool(candidate.get("customer_problem")),
         }
+
     def final_candidates(self) -> List[Dict]:
         eligible = []
         for candidate in self.state.candidates:
@@ -104,10 +109,6 @@ class ResearchWorkflow:
             "verified_count": sum(1 for c in self.state.candidates if c.get("status") == "VERIFIED"),
             "rejected_count": sum(1 for c in self.state.candidates if c.get("blockers")),
             "top_scores": [{"name": c.get("name"), "score": c.get("product_score")} for c in final],
-            "message": (
-                "NO PRODUCT PASSED THE CURRENT EVIDENCE GATES."
-                if not final else
-                "Final candidates are ready for human review."
-            ),
+            "message": ("NO PRODUCT PASSED THE CURRENT EVIDENCE GATES." if not final else "Final candidates are ready for human review."),
             "blockers": self.state.blockers,
         }
