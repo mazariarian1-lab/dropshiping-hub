@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 from uuid import uuid4
 
 from .adapters import build_configured_registry
+from .adapters.connection_manager import ConnectionManager
 from .workflow import ResearchRequest, ResearchWorkflow
 
 def build_prompt(request):
@@ -98,11 +99,13 @@ def run_research(request=None, keyword=None):
     ]
     summary = workflow.summary()
     summary["adapter_diagnostics"] = adapter_diagnostics
+    summary["connections"] = ConnectionManager().summary()
     return {
         "request_id": request_id,
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "status": "READY_FOR_HUMAN_REVIEW" if final else "NO_VERIFIED_CANDIDATES",
         "request": asdict(request),
+        "connections": summary["connections"],
         "candidates": workflow.state.candidates,
         "final_candidates": final,
         "summary": summary,
