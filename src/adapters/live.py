@@ -201,7 +201,7 @@ class CJDropshippingAdapter(ResearchAdapter):
                         continue
                     price=self._price(option.get("logisticPrice") or option.get("price"))
                     aging=self._delivery_range(option.get("logisticAging") or option.get("aging"))
-                    if price is not None and aging and aging[0] >= 0 and aging[1] <= 12:
+                    if price is not None and aging and aging[0] >= 4 and aging[1] <= 12:
                         valid.append((price,aging,option))
                 if not valid:
                     continue
