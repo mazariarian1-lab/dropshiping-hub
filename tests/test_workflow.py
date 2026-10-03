@@ -135,8 +135,8 @@ def test_end_to_end_mocked_live_evidence_reaches_verified():
             if self.name == "perplexity":
                 base["evidence"] = [{"source": "Perplexity"}]
             elif self.name == "cj_dropshipping":
-                base["evidence"] = [{"source": "CJ Dropshipping API"}]
-                base["shipping_evidence"] = {"source": "CJ Freight Calculation", "destination": "US"}
+                base["evidence"] = [{"source": "CJ Dropshipping API", "source_type": "first_party"}]
+                base["shipping_evidence"] = {"source": "CJ Freight Calculation", "source_type": "first_party", "origin": "US", "destination": "US"}
             elif self.name == "google_trends":
                 base["evidence"] = [{"source": "Google Trends via pytrends"}]
             elif self.name == "tiktok_ads":
