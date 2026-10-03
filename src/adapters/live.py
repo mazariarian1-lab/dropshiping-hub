@@ -62,14 +62,14 @@ class CJDropshippingAdapter(ResearchAdapter):
             return None
         if isinstance(value, (int, float)):
             return float(value)
-        nums=re.findall(r"\d+(?:[.,]\\d+)?", str(value).replace(",", ""))
+        nums=re.findall(r"\d+(?:[.,]\d+)?", str(value).replace(",", ""))
         return float(nums[0]) if nums else None
 
     @staticmethod
     def _price(value):
         if value is None:
             return None
-        nums=[float(x) for x in re.findall(r"\d+(?:[.,]\\d+)?", str(value).replace(",", ""))]
+        nums=[float(x) for x in re.findall(r"\d+(?:[.,]\d+)?", str(value).replace(",", ""))]
         return round(sum(nums)/len(nums), 2) if nums else None
 
     @staticmethod
