@@ -40,6 +40,19 @@ def verify_candidate(candidate: Dict[str, Any]) -> Dict[str, Any]:
     if not evidence:
         blockers.append("no structured evidence records are attached")
 
+    # Supplier, warehouse, and fulfillment claims require first-party evidence.
+    first_party = [
+        item for item in evidence
+        if isinstance(item, dict)
+        and str(item.get("source_type", "")).lower() == "first_party"
+    ]
+    if out.get("supplier") == "CJ Dropshipping" and not first_party:
+        blockers.append("CJ supplier/warehouse claims lack first-party evidence")
+    shipping_evidence = out.get("shipping_evidence")
+    if out.get("supplier") == "CJ Dropshipping":
+        if not isinstance(shipping_evidence, dict) or str(shipping_evidence.get("source", "")).lower() != "cj freight calculation":
+            blockers.append("CJ fulfillment lacks direct freight-calculation evidence")
+
     if blockers:
         out["status"] = "NEEDS LIVE VERIFICATION"
     else:
