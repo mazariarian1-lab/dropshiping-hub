@@ -22,6 +22,7 @@ A beginner-friendly, evidence-first foundation for an AI-assisted USA dropshippi
 - Conservative verification layer before evidence gates
 - Human-readable Markdown research report artifact
 - Post-verification handoff for Shopify, Canva, and bundle/AOV tooling
+- TeemDrop integration scaffold with credential-safe configuration; live API sync is disabled until documented TeemDrop API access is available
 
 ## Core principles
 
