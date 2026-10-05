@@ -38,7 +38,7 @@ class GeminiAdapter(ResearchAdapter):
         key=os.getenv("GEMINI_API_KEY")
         if not key: return AdapterResult.not_connected("gemini",request_id,"GEMINI_API_KEY is not configured.")
         try:
-            model=os.getenv("GEMINI_MODEL","gemini-2.5-flash")
+            model=os.getenv("GEMINI_MODEL","gemini-3.8-flash")
             data=post_json(f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={key}",{"contents":[{"parts":[{"text":request.get("prompt","Research demand, seasonality and market context for US dropshipping.")}]}]})
             return _ai_result("gemini",data,request_id)
         except RuntimeError as exc: return AdapterResult("gemini","BLOCKED",request_id,_now(),unknowns=[str(exc)])
