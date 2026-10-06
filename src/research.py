@@ -7,20 +7,29 @@ from .adapters import build_configured_registry
 from .adapters.connection_manager import ConnectionManager
 from .workflow import ResearchRequest, ResearchWorkflow
 
-def build_prompt(request):
-    return f"""You are a research assistant for USA dropshipping. Find product opportunities, but never invent evidence.
-Return ONLY JSON with a candidates array. Maximum {request.max_final_candidates * 3} candidates.
-For each candidate provide, when actually evidenced: name, customer_problem, source_url, supplier, us_warehouse,
-delivery_days, product_cost, shipping_cost, retail_price, gross_margin_percent, trend_12m, trend_5y,
-competition, ad_potential, risk_level, and evidence/source details.
-Do not claim CJ US warehouse, exact SKU availability, delivery, costs, shipping, prices, or trend values
-unless directly supported by the relevant source. Target retail price <= ${request.retail_price_max:g};
-target fulfillment {request.fulfillment_min_days}-{request.fulfillment_max_days} days.
-Prefer non-fragile, non-sized, low-complexity products solving a clear consumer problem with demonstration/ad potential.
-Competition and ad_potential must be evidence-backed; if unavailable, use UNKNOWN rather than guessing. Risk_level must explain concrete product risks.
-If TikTok Commercial Content evidence is available, use it as a secondary ad/competition signal, not as proof of profitability.
-Market: USA. Research depth: {request.research_depth}. Evidence > assumptions."""
-
+def build_prompt(request, role="discovery", candidates=None):
+    base = f"""USA dropshipping research. Evidence first; never invent facts.
+Market: USA. Research depth: {request.research_depth}.
+Owner constraints: retail <= ${request.retail_price_max:g}; fulfillment target {request.fulfillment_min_days}-{request.fulfillment_max_days} days;
+prefer CJ Dropshipping US Warehouse, non-fragile, non-sized, non-complex, non-medical/therapeutic products.
+Consumer problem and ad/demo potential are required. Trend evidence must cover 12M and 5Y when available.
+Return ONLY JSON with a candidates array. Use UNKNOWN when evidence is unavailable.
+"""
+    if role == "discovery":
+        return base + f"""Find up to {request.max_final_candidates * 3} promising evergreen or seasonal product opportunities for US dropshipping.
+Focus on clear consumer problems, giftability where relevant, healthy economics, visual demonstration potential, and low operational risk.
+Do not claim CJ stock, warehouse, SKU, delivery, exact cost or shipping unless directly sourced from CJ.
+"""
+    if role == "review":
+        names = [c.get("name") for c in (candidates or []) if c.get("name")]
+        return base + """You are the independent critical reviewer.
+Review ONLY the supplied candidates. Do not invent new candidates.
+For each candidate, identify evidence-supported strengths, weaknesses, competition, ad potential, risks, contradictions and missing proof.
+Preserve uncertainty. Return one candidate object per supplied product name.
+Candidates:
+""" + json.dumps(names, ensure_ascii=False) + """
+"""
+    return base
 def _name_key(value):
     return " ".join(str(value or "").lower().replace("-", " ").split())
 
