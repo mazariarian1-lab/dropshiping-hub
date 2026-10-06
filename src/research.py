@@ -67,21 +67,24 @@ def run_research(request=None, keyword=None):
     request_id = uuid4().hex
     workflow = ResearchWorkflow(request)
     registry = build_configured_registry()
-    base = {"market": request.market, "prompt": build_prompt(request)}
+    base = {"market": request.market, "prompt": build_prompt(request, role="discovery")}
     if keyword:
         base["keyword"] = keyword
 
-    # Discovery first. CJ is a fallback only when independent discovery adapters return nothing.
-    discovery_adapters = [
-        adapter for name, adapter in registry.items()
-        if name not in {"cj_dropshipping", "google_trends"}
-    ]
-    packets = [adapter.research(base, request_id).to_packet() for adapter in discovery_adapters]
+    # Phase 1: independent opportunity discovery. Claude is reserved for review,
+    # so it does not simply repeat the same discovery task.
+    packets = []
+    for name in ("perplexity", "gemini"):
+        adapter = registry.get(name)
+        if adapter is not None:
+            packets.append(adapter.research(base, request_id).to_packet())
+
     discovery_candidates = []
     for packet in packets:
         discovery_candidates.extend(packet.get("candidates", []))
 
-    # With only CJ configured, the supplier catalog can safely provide discovery candidates.
+    # If no web-discovery adapter is connected, CJ may still provide supplier-backed
+    # discovery candidates. This is a fallback, not a quality signal.
     if not discovery_candidates:
         cj = registry.get("cj_dropshipping")
         if cj is not None:
@@ -92,6 +95,17 @@ def run_research(request=None, keyword=None):
     if keyword and not any(_similar(keyword, c.get("name")) for c in discovery_candidates):
         discovery_candidates.append({"name": keyword})
 
+    # Phase 2: Claude independently reviews the discovered shortlist.
+    claude = registry.get("claude")
+    if claude is not None and discovery_candidates:
+        review_request = {
+            "market": request.market,
+            "prompt": build_prompt(request, role="review", candidates=discovery_candidates),
+            "candidates": discovery_candidates,
+        }
+        packets.append(claude.research(review_request, request_id).to_packet())
+
+    # Phase 3: first-party supplier, trend and ad checks for every shortlisted candidate.
     packets.extend(_enrich_with_live_checks(
         discovery_candidates, registry, request_id, request.max_final_candidates * 3
     ))
